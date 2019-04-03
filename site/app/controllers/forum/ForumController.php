@@ -777,10 +777,12 @@ class ForumController extends AbstractController {
 
     public function getEditPostContent(){
         $post_id = $_POST["post_id"];
+        $user = $this->core->getUser()->getId();
         if($this->checkPostEditAccess($post_id) && !empty($post_id)) {
             $result = $this->core->getQueries()->getPost($post_id);
+            $should_see_anon = $user === $result["author_user_id"] || $this->core->getUser()->accessFullGrading();
             $output = array();
-            $output['user'] = $result["author_user_id"];
+            $output['user'] = ($result['anonymous'] && !$should_see_anon) ? "Anonymous" :$result["author_user_id"];
             $output['post'] = $result["content"];
             $output['post_time'] = $result['timestamp'];
             $output['anon'] = $result['anonymous'];
