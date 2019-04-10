@@ -2124,7 +2124,7 @@ class ElectronicGraderController extends GradingController {
         $all_submitter_ids     = $this->core->getQueries()->getAllSubmittersWhoGotMark($mark);
 
         // Show all submitters if grader has permissions, otherwise just section submitters
-        $submitter_ids = ($grader->accessFullGrading() ? $all_submitter_ids : $section_submitter_ids);
+        $submitter_ids = ($this->core->getAccess()->canI("grading.electronic.status.full") ? $all_submitter_ids : $section_submitter_ids);
 
         $section_graded_component_count = 0;
         $section_total_component_count  = 0;
@@ -2155,15 +2155,42 @@ class ElectronicGraderController extends GradingController {
     private function getStats(Gradeable $gradeable, User $grader, bool $full_stats, &$total_graded, &$total_total) {
         $num_components = $this->core->getQueries()->getTotalComponentCount($gradeable->getId());
         $sections = array();
-        if ($full_stats) {
-            $sections = $this->core->getQueries()->getAllSectionsForGradeable($gradeable);
-        } else if ($gradeable->isGradeByRegistration()) {
-            $sections = $grader->getGradingRegistrationSections();
-        } else {
-            $sections = $this->core->getQueries()->getRotatingSectionsForGradeableAndUser($gradeable->getId(), $grader->getId());
+        
+        $section_key = '';
+        
+        if ($gradeable->isGradeByRegistration()) {
+            if (!$full_stats) {
+                $sections = $this->core->getUser()->getGradingRegistrationSections();
+            }
+            else {
+                $sections = $this->core->getQueries()->getRegistrationSections();
+                foreach ($sections as $i => $section) {
+                    $sections[$i] = $section['sections_registration_id'];
+                }
+            }
+            $section_key = 'registration_section';
         }
-
-        $section_key = ($gradeable->isGradeByRegistration() ? 'registration_section' : 'rotating_section');
+        //grading by rotating section
+        else {
+            if (!$full_stats) {
+                $sections = $this->core->getQueries()->getRotatingSectionsForGradeableAndUser($gradeable_id, $this->core->getUser()->getId());
+            }
+            else {
+                $sections = $this->core->getQueries()->getRotatingSections();
+                foreach ($sections as $i => $section) {
+                    $sections[$i] = $section['sections_rotating_id'];
+                }
+            }
+            $section_key = 'rotating_section';
+        }
+        
+        // if ($full_stats) {
+        //     $sections = $this->core->getQueries()->getAllSectionsForGradeable($gradeable);
+        // } else if ($gradeable->isGradeByRegistration()) {
+        //     $sections = $grader->getGradingRegistrationSections();
+        // } else {
+        //     $sections = $this->core->getQueries()->getRotatingSectionsForGradeableAndUser($gradeable->getId(), $grader->getId());
+        // }
 
         $total_users       = array();
         $graded_components = array();
